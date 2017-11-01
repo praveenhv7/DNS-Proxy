@@ -20,17 +20,17 @@
 #include<net/ethernet.h>
 using namespace std;
 
-char* convertToDNSFormat(char *names);
-void createIPPacket(struct ip_packet *packet, unsigned int);
-void createUDPPacket(struct udp_packet *udpPacket);
-void createDNSPacket(void *dnsPacket);
+char* convertToDNSFormat(char *name);
+void createIPPacket(struct ip_packet *packet, unsigned int,char *dnsIpAddress);
+void createUDPPacket(struct udp_packet *udpPacket,int hostnameLen);
+void createDNSPacket(void *dnsPacket,char *);
 void sendAndRecvTCPPackets();
-void sendAndRecvDNSPackets(int identificationNum, int queryLen);
-void parseUDPPacket(void *packet, int totalLength, int identificationNum, int);
-void parseDNSResponse(void *packet, int);
+void sendAndRecvDNSPackets(int identificationNum, int queryLen,char *);
+void parseUDPPacket(void *packet, int totalLength, int identificationNum, int,char *);
+void parseDNSResponse(void *packet, int,char *);
 void convertIpDecimalToString(unsigned short *ipAddress,char *ipAddressString);
-
-
+void sendDNSPacketAndGetResponse(char *hostName,char *dnsIpAddress,char *hostAddress);
+int stringLength(char *str);
 
 struct ip_packet {
 	unsigned char version_ihl; //8bits
@@ -90,6 +90,30 @@ struct tcp_packet {
 
 int main() {
 
+	char *hostName="www.facebook.com";
+	char *dnsIpAddress="208.67.222.123";
+	char hostAddress[20];
+	sendDNSPacketAndGetResponse(hostName,dnsIpAddress,hostAddress);
+	printf("\n Final IP address obtained %s",hostAddress);
+}
+
+
+int stringLength(char *str) {
+
+	if(str!=NULL) {
+	int len=0;
+	while(*(str+len)!='\0') {
+		len++;
+	}
+
+	return len;
+	}
+	else
+		return 0;
+}
+
+void sendDNSPacketAndGetResponse(char *hostName,char *dnsIpAddress,char *hostAddress) {
+
 	struct ip_packet *packet, packetStruct;
 	struct udp_packet *udpPacket;
 	struct dns_packet *dnsPacketPtr;
@@ -98,7 +122,7 @@ int main() {
 	int udpPacketSize = sizeof(*udpPacket);
 	int dnsPacketSize = sizeof(*dnsPacketPtr);
 
-	int queryLen = 16;
+	int queryLen = stringLength(hostName)+2;
 
 	cout << "IP  Packet Header Size " << ipPacketSize << endl;
 	cout << "UDP Packet Header Size " << udpPacketSize << endl;
@@ -108,22 +132,22 @@ int main() {
 
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(80);
-	sin.sin_addr.s_addr = inet_addr("208.67.222.123");
+	sin.sin_addr.s_addr = inet_addr(dnsIpAddress);
 	int sockFd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 
 	unsigned int totalPacketSize = ipPacketSize + udpPacketSize
-			+ sizeof(struct dns_packet) + (16 * sizeof(char)) + 4;
+			+ sizeof(struct dns_packet) + (queryLen * sizeof(char)) + 4;
 	void *totPacket = malloc(totalPacketSize);
 
 	packet = (struct ip_packet*) totPacket;
-	createIPPacket(packet, totalPacketSize);
+	createIPPacket(packet, totalPacketSize,dnsIpAddress);
 
 	udpPacket = (struct udp_packet*) (totPacket + sizeof(packetStruct));
-	createUDPPacket(udpPacket);
+	createUDPPacket(udpPacket,queryLen);
 
 	//char *dataWritten=(char *)(totPacket+ipPacketSize+udpPacketSize);
 	void *dnsPacket = totPacket + ipPacketSize + udpPacketSize;
-	createDNSPacket(dnsPacket);
+	createDNSPacket(dnsPacket,hostName);
 
 	int dnsRequestID = ((struct dns_packet*) dnsPacket)->identification;
 
@@ -139,12 +163,12 @@ int main() {
 	}
 
 	free(totPacket);
-	sendAndRecvDNSPackets(dnsRequestID, queryLen);
+	sendAndRecvDNSPackets(dnsRequestID, queryLen,hostAddress);
 
-	return 0;
+
 }
 
-void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize) {
+void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize,char *dnsIpAddress) {
 
 	unsigned char version = 4;
 	unsigned char headerLen = 5;
@@ -174,28 +198,28 @@ void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize) {
 	packet->headerChecksum = htons(0);
 
 	packet->sourceAddress = inet_addr("192.168.133.133");
-	packet->destinationAddress = inet_addr("208.67.222.123");
+	packet->destinationAddress = inet_addr(dnsIpAddress);
 
 }
 
-void createUDPPacket(struct udp_packet *udpPacket) {
+void createUDPPacket(struct udp_packet *udpPacket,int hostnameLen) {
 
 	int udpPacketSize = sizeof(*udpPacket);
 
 	udpPacket->source_port = htons(5555);
 	udpPacket->destination_port = htons(53);
 	udpPacket->length = htons(
-			udpPacketSize + sizeof(struct dns_packet) + (16 * sizeof(char))
+			udpPacketSize + sizeof(struct dns_packet) + (hostnameLen * sizeof(char))
 					+ 4);
 	udpPacket->checksum = htons(0);
 }
 
-void createDNSPacket(void *dnsQueryPacket) {
+void createDNSPacket(void *dnsQueryPacket,char *hostName) {
 
-	char *name = "www.google.com";
+	//char *name = "www.google.com";
 
 	int nameLen = 0;
-	char *query = convertToDNSFormat(name);
+	char *query = convertToDNSFormat(hostName);
 	int len = 0;
 
 	while (*(query + len) != '\0') {
@@ -203,6 +227,7 @@ void createDNSPacket(void *dnsQueryPacket) {
 
 	}
 	len++;
+
 
 	struct dns_packet *dnsPacket = (struct dns_packet*) dnsQueryPacket;
 	dnsPacket->identification = 26602;
@@ -244,12 +269,27 @@ char* convertToDNSFormat(char *names) {
 
 	char *name = "www.google.com."; //3www6google3com0
 
+
+
+
 	int len = 0;
 
 	while (*(name + len) != '\0') {
 		len++;
 	}
 
+	/*
+	char *name=(char *) malloc(len + 1);
+
+	if(*(names+(len+1))!='.') {
+		char append='.';
+
+		name=strcat(names,&append);
+
+		}
+	 	 */
+
+	printf("\n actual string with the appended '.' %s",name);
 	printf("Length of the string is %d:\n", len);
 
 	char *query = (char *) malloc(len + 2); //query has the address of first assigned byte
@@ -355,7 +395,7 @@ void createTCPPacket(void *tcpPacketMem, int srcPortNum, int dstPortNum,
 
 }
 
-void sendAndRecvDNSPackets(int identificationNum, int queryLen) {
+void sendAndRecvDNSPackets(int identificationNum, int queryLen,char *hostAddress) {
 	struct ip_packet *ipPacket;
 
 	struct dns_packet *dnsPacket;
@@ -410,7 +450,7 @@ void sendAndRecvDNSPackets(int identificationNum, int queryLen) {
 			printf("/n UDP packet, may be a DNS Response.");
 
 			int totalLength = ntohs(ipPacket->totalLen);
-			parseUDPPacket(buffer, totalLength, identificationNum, queryLen);
+			parseUDPPacket(buffer, totalLength, identificationNum, queryLen,hostAddress);
 		} else if (ipPacket->protocol == 6) {
 			printf("\n TCP packet");
 		}
@@ -425,7 +465,7 @@ void sendAndRecvDNSPackets(int identificationNum, int queryLen) {
 }
 
 void parseUDPPacket(void *packet, int totalLength, int identificationNum,
-		int queryLen) {
+		int queryLen,char *hostAddress) {
 
 	printf("\n Entering parseUDPPacket");
 	struct udp_packet *udpPacket;
@@ -454,7 +494,7 @@ void parseUDPPacket(void *packet, int totalLength, int identificationNum,
 			printf("reply count =%d\n", replyCount);
 			printf("auth count =%d\n", authCount);
 			printf("\n*******END STATS*********\n");
-			parseDNSResponse(packet, queryLen);
+			parseDNSResponse(packet, queryLen,hostAddress);
 		}
 
 	} else {
@@ -463,7 +503,7 @@ void parseUDPPacket(void *packet, int totalLength, int identificationNum,
 
 }
 
-void parseDNSResponse(void *packet, int queryLen) {
+void parseDNSResponse(void *packet, int queryLen,char *hostAddress) {
 	printf("\n inside parseDNSResponse \n");
 	printf("\n query length =%d", queryLen);
 	void *dnsResponse = (packet + sizeof(struct ethhdr)
@@ -499,10 +539,10 @@ void parseDNSResponse(void *packet, int queryLen) {
 		ipAddress[i] = convertDec;
 
 	}
-	char  ipAddressString[16];
-	convertIpDecimalToString(ipAddress,ipAddressString);
+	//char  ipAddressString[16];
+	convertIpDecimalToString(ipAddress,hostAddress);
 
-	printf("\n the string obtained is %s ", ipAddressString);
+	printf("\n the string obtained is %s ", hostAddress);
 
 }
 
