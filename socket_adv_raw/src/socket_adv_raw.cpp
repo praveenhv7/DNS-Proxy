@@ -90,7 +90,12 @@ struct tcp_packet {
 	unsigned short int checksum;
 	unsigned short int urgent_pointer;
 };
-
+/**
+ * Objective: Initialize host name string and DNS server address
+ * Returns: NA
+ * Print the final Result
+ * Calls function to create a IP packet
+ */
 int main() {
 
 	char *hostName = "www.northeastern.edu";
@@ -100,6 +105,11 @@ int main() {
 	printf("\n Final IP address obtained %s", hostAddress);
 }
 
+/**
+ * Objective: Find the length of the String
+ * Input: Pointer to a string / char-array
+ * Returns : int -> length of the passed String
+ */
 int stringLength(char *str) {
 
 	if (str != NULL) {
@@ -113,6 +123,13 @@ int stringLength(char *str) {
 		return 0;
 }
 
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void sendDNSPacketAndGetResponse(char *hostName, char *dnsIpAddress,
 		char *hostAddress) {
 
@@ -169,6 +186,13 @@ void sendDNSPacketAndGetResponse(char *hostName, char *dnsIpAddress,
 
 }
 
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize,
 		char *dnsIpAddress) {
 
@@ -204,6 +228,13 @@ void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize,
 
 }
 
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void createUDPPacket(struct udp_packet *udpPacket, int hostnameLen) {
 
 	int udpPacketSize = sizeof(*udpPacket);
@@ -215,7 +246,13 @@ void createUDPPacket(struct udp_packet *udpPacket, int hostnameLen) {
 					+ (hostnameLen * sizeof(char)) + 4);
 	udpPacket->checksum = htons(0);
 }
-
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void createDNSPacket(void *dnsQueryPacket, char *hostName) {
 
 	//char *name = "www.google.com";
@@ -266,7 +303,13 @@ void createDNSPacket(void *dnsQueryPacket, char *hostName) {
 	free(query);
 
 }
-
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 char* convertToDNSFormat(char *names) {
 
 	cout << "\n*******************************************" << endl;
@@ -355,7 +398,13 @@ char* convertToDNSFormat(char *names) {
 
 	cout << "*******************************************" << endl;
 }
-
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void createTCPPacket(void *tcpPacketMem, int srcPortNum, int dstPortNum,
 		int seqNum, int ackNum) {
 	struct tcp_packet *tcpPacket;
@@ -387,7 +436,13 @@ void createTCPPacket(void *tcpPacketMem, int srcPortNum, int dstPortNum,
 	tcpPacket->urgent_pointer = 0;
 
 }
-
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void sendAndRecvDNSPackets(int identificationNum, int queryLen,
 		char *hostAddress) {
 	struct ip_packet *ipPacket;
@@ -458,7 +513,13 @@ void sendAndRecvDNSPackets(int identificationNum, int queryLen,
 	}
 
 }
-
+/**
+ * Objective:
+ * Input:
+ * Returns:
+ * Example:
+ * Explanation:
+ */
 void parseUDPPacket(void *packet, int totalLength, int identificationNum,
 		int queryLen, char *hostAddress) {
 
@@ -497,7 +558,13 @@ void parseUDPPacket(void *packet, int totalLength, int identificationNum,
 	}
 
 }
-
+/**
+ * Objective: Parse the DNS response packet and identify the type. if its CNAME print it if its IP store it in input variable
+ * Input: IP packet, length of the actual query(www.google.com), variable to store the IP address, number of replies obtained.
+ * Returns: NA
+ * Example:
+ * Explanation: packet pointer is advanced after parsing each response. for loop is used to go through each query.
+ */
 void parseDNSResponse(void *packet, int queryLen, char *hostAddress,
 		int replyCount) {
 	printf("\n inside parseDNSResponse \n");
@@ -505,10 +572,6 @@ void parseDNSResponse(void *packet, int queryLen, char *hostAddress,
 	void *dnsResponse = (packet + sizeof(struct ethhdr)
 			+ sizeof(struct ip_packet) + sizeof(struct udp_packet)
 			+ sizeof(struct dns_packet) + queryLen + 4);
-
-
-
-
 
 	for (int i = 0; i < replyCount; i++) {
 
@@ -567,7 +630,14 @@ void parseDNSResponse(void *packet, int queryLen, char *hostAddress,
 	printf("\n the string obtained is %s ", hostAddress);
 
 }
-
+/**
+ * Objective: Extract single digit from the IP address obtained and reversing it.
+ * Input: pointer to ipAddress array which contains 4 number in dotted notation.
+ * 			pointer to char array which contains the output.
+ * Returns: NA
+ * Example: 271 -> 172
+ * Explanation: converting from network byte order to host order and making a IP string.
+ */
 void convertIpDecimalToString(unsigned short *ipAddress,
 		char *ipAddressString) {
 
@@ -577,6 +647,9 @@ void convertIpDecimalToString(unsigned short *ipAddress,
 		int addressSingleDigit[3] = { 0, 0, 0 };
 		int ipPart = ipAddress[i];
 		int j = 0;
+		/**
+		 * extracting single digit.
+		 */
 		while (ipPart != 0) {
 
 			int temp = ipPart % 10;
@@ -585,20 +658,31 @@ void convertIpDecimalToString(unsigned short *ipAddress,
 
 			j++;
 		}
-
+		/**
+		 * reversing the digits obtained.
+		 * adding 48 to get the char representation of the number.
+		 */
 		for (int k = 2; k >= 0; k--) {
 
 			ipAddressString[ipIndex] = 48 + addressSingleDigit[k];
 			ipIndex++;
 		}
-
+		/**
+		 * adding '.' after 3 digits.
+		 */
 		ipAddressString[ipIndex] = '.';
 		ipIndex++;
 	}
 	ipAddressString[15] = '\0';
 
 }
-
+/**
+ * Objective: Convert DNS host name to dot notation
+ * Input: char pointer which contains the hostname in normal form
+ * Returns: pointer to char which contains the hostname with an appended '.'
+ * Example: input :www.google.com -> output: www.google.com.
+ * Explanation: Dot notation is used to calculate the number of letter before a dot.
+ */
 char *convertHostToDotNotation(char *hostName) {
 
 	int len = 0;
@@ -620,5 +704,10 @@ char *convertHostToDotNotation(char *hostName) {
 	printf("\n converted string is %s", hostNameDNSForm);
 
 	return hostNameDNSForm;
+
+}
+
+void printLogs(char *functionName) {
+
 
 }
