@@ -25,7 +25,7 @@ void createIPPacket(struct ip_packet *packet, unsigned int, char *dnsIpAddress);
 void createUDPPacket(struct udp_packet *udpPacket, int hostnameLen);
 void createDNSPacket(void *dnsPacket, char *);
 void sendAndRecvTCPPackets();
-void sendAndRecvDNSPackets(int identificationNum, int queryLen, char *);
+void sendAndRecvDNSPackets(int identificationNum, int queryLen, char *,char *);
 void parseUDPPacket(void *packet, int totalLength, int identificationNum, int,
 		char *);
 void parseDNSResponse(void *packet, int, char *, int);
@@ -90,13 +90,94 @@ struct tcp_packet {
 	unsigned short int checksum;
 	unsigned short int urgent_pointer;
 };
+
+/**
+ * Open socket and accept a UDP packet containing the hostname resolve the hostname
+ * and send the IP address mapped to that hostname
+ */
+int main(){
+	unsigned portNumber=5265;
+	int sockUDP=0;
+	 struct sockaddr_in myaddr;  // address of the server
+	 struct sockaddr_in claddr;
+	 char buffer[4096];
+	 long recvlen;
+	 socklen_t clientlen=sizeof(claddr);
+	 int length;
+
+
+	 myaddr.sin_addr.s_addr=htonl(INADDR_ANY);
+	 myaddr.sin_family=AF_INET;
+	 myaddr.sin_port=htons(portNumber);
+
+	sockUDP=socket(AF_INET,SOCK_DGRAM,0);
+	if(sockUDP>0)
+	{
+		/* setsockopt: Handy debugging trick that lets
+		   * us rerun the server immediately after we kill it;
+		   * otherwise we have to wait about 20 secs.
+		   * Eliminates "ERROR on binding: Address already in use" error.
+		   */
+		 int optval = 1;
+		  setsockopt(sockUDP, SOL_SOCKET, SO_REUSEADDR,
+			     (const void *)&optval , sizeof(int));
+
+		//int bind(int, const sockaddr *, unsigned int)
+		if(bind(sockUDP, (struct sockaddr *)&myaddr,sizeof(myaddr)) < 0 )
+		{
+			printf("\n Bind Failed");
+			fflush(stdout);
+		}
+		else
+		{
+			printf("\n Bind success waiting for data");
+			fflush(stdout);
+			//recvfrom(int sockfd, void *buf, size_t len, int flags,struct sockaddr *src_addr, socklen_t *addrlen);
+			while(1)
+			{
+				length=recvfrom(sockUDP,buffer,4096,0,(struct sockaddr *)&claddr,&clientlen);
+				printf( "\n %d bytes: '%s'\n", length, buffer );
+				printf("\n %d ",ntohs(claddr.sin_port));
+
+
+				char *dnsIpAddress = "208.67.222.123";
+				char hostAddress[20];
+				sendDNSPacketAndGetResponse(buffer, dnsIpAddress, hostAddress);
+				printf("\n Final IP address obtained %s", hostAddress);
+				
+				
+
+				int lenAddr=stringLength(hostAddress);
+
+				int status=sendto(sockUDP, hostAddress, lenAddr, 0, (struct sockaddr*) &claddr, clientlen);
+				fflush(stdout);
+				if(status==-1)
+				{
+					printf("\n Error Sending");
+					fflush(stdout);
+
+				}
+				else
+					printf("\nData Sent");
+					fflush(stdout);
+			}
+
+		}
+	}
+	else {
+		printf("\nSocket Creation failed");
+	}
+}
+
+
 /**
  * Objective: Initialize host name string and DNS server address
  * Returns: NA
  * Print the final Result
  * Calls function to create a IP packet
  */
-int main() {
+
+int testDNSReqAndRes() {
 
 	char *hostName = "www.northeastern.edu";
 	char *dnsIpAddress = "208.67.222.123";
@@ -182,7 +263,7 @@ void sendDNSPacketAndGetResponse(char *hostName, char *dnsIpAddress,
 	}
 
 	free(totPacket);
-	sendAndRecvDNSPackets(dnsRequestID, queryLen, hostAddress);
+	sendAndRecvDNSPackets(dnsRequestID, queryLen, hostAddress,dnsIpAddress);
 
 }
 
@@ -444,7 +525,7 @@ void createTCPPacket(void *tcpPacketMem, int srcPortNum, int dstPortNum,
  * Explanation:
  */
 void sendAndRecvDNSPackets(int identificationNum, int queryLen,
-		char *hostAddress) {
+		char *hostAddress,char *dnsIpAddress) {
 	struct ip_packet *ipPacket;
 
 	struct dns_packet *dnsPacket;
@@ -484,7 +565,7 @@ void sendAndRecvDNSPackets(int identificationNum, int queryLen,
 		sin.sin_addr.s_addr = ipPacket->sourceAddress;
 		sdest.sin_addr.s_addr = ipPacket->destinationAddress;
 
-		if (ipPacket->sourceAddress == inet_addr("208.67.222.123")) {
+		if (ipPacket->sourceAddress == inet_addr(dnsIpAddress)) {
 			printf("\nFrom address -> %s ", inet_ntoa(sin.sin_addr));
 			printf("\nTo address -> %s", inet_ntoa(sdest.sin_addr));
 			recvNext = false;
