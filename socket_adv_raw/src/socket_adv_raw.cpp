@@ -140,16 +140,38 @@ int main(){
 				printf("\n %d ",ntohs(claddr.sin_port));
 
 
-				char *dnsIpAddress = "208.67.222.123";
-				char hostAddress[20];
-				sendDNSPacketAndGetResponse(buffer, dnsIpAddress, hostAddress);
-				printf("\n Final IP address obtained %s", hostAddress);
-				
-				
+				char *dnsIpAddressOne = "208.67.222.123";
+				char hostAddressOne[20];
+				sendDNSPacketAndGetResponse(buffer, dnsIpAddressOne, hostAddressOne);
+				printf("\n Final IP address obtained %s", hostAddressOne);
 
-				int lenAddr=stringLength(hostAddress);
+				char *dnsIpAddressTwo = "8.8.8.8";
+				char hostAddressTwo[20];
+				sendDNSPacketAndGetResponse(buffer, dnsIpAddressTwo, hostAddressTwo);
+				printf("\n Final IP address obtained %s", hostAddressTwo);
 
-				int status=sendto(sockUDP, hostAddress, lenAddr, 0, (struct sockaddr*) &claddr, clientlen);
+				char hostAddressSend[40];
+				int k=0;
+				for(int i=0;i<stringLength(hostAddressOne);i++) {
+
+					hostAddressSend[k]=hostAddressOne[i];
+					k++;
+
+				}
+				hostAddressSend[k]=':';
+				k++;
+
+				for(int i=0;i<stringLength(hostAddressTwo);i++) {
+
+					hostAddressSend[k]=hostAddressTwo[i];
+					k++;
+
+				}
+				hostAddressSend[k]='\0';
+
+				int lenAddr=stringLength(hostAddressSend);
+
+				int status=sendto(sockUDP, hostAddressSend, lenAddr, 0, (struct sockaddr*) &claddr, clientlen);
 				fflush(stdout);
 				if(status==-1)
 				{
