@@ -109,6 +109,7 @@ int main(){
 	 myaddr.sin_addr.s_addr=htonl(INADDR_ANY);
 	 myaddr.sin_family=AF_INET;
 	 myaddr.sin_port=htons(portNumber);
+	 memset(buffer,0,4096);
 
 	sockUDP=socket(AF_INET,SOCK_DGRAM,0);
 	if(sockUDP>0)
@@ -135,6 +136,7 @@ int main(){
 			//recvfrom(int sockfd, void *buf, size_t len, int flags,struct sockaddr *src_addr, socklen_t *addrlen);
 			while(1)
 			{
+				memset(buffer,0,4096);
 				length=recvfrom(sockUDP,buffer,4096,0,(struct sockaddr *)&claddr,&clientlen);
 				printf( "\n %d bytes: '%s'\n", length, buffer );
 				printf("\n %d ",ntohs(claddr.sin_port));
@@ -142,15 +144,18 @@ int main(){
 
 				char *dnsIpAddressOne = "208.67.222.123";
 				char hostAddressOne[20];
+				memset(hostAddressOne,0,20);
 				sendDNSPacketAndGetResponse(buffer, dnsIpAddressOne, hostAddressOne);
 				printf("\n Final IP address obtained %s", hostAddressOne);
 
 				char *dnsIpAddressTwo = "8.8.8.8";
 				char hostAddressTwo[20];
+				memset(hostAddressTwo,0,20);
 				sendDNSPacketAndGetResponse(buffer, dnsIpAddressTwo, hostAddressTwo);
 				printf("\n Final IP address obtained %s", hostAddressTwo);
 
 				char hostAddressSend[40];
+				memset(hostAddressSend,0,40);
 				int k=0;
 				for(int i=0;i<stringLength(hostAddressOne);i++) {
 
@@ -227,11 +232,11 @@ int stringLength(char *str) {
 }
 
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: constructing the whole packet and sending it using RAW sockets
+ * Input: hostname to which dns query must be initiated, the IP of the DNS server, location to store the final IP address
+ * Returns: void
  * Example:
- * Explanation:
+ * Explanation:s
  */
 void sendDNSPacketAndGetResponse(char *hostName, char *dnsIpAddress,
 		char *hostAddress) {
@@ -290,11 +295,11 @@ void sendDNSPacketAndGetResponse(char *hostName, char *dnsIpAddress,
 }
 
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: create an IP packet
+ * Input: pointer to memory location where IP packet will be placed, size of the total packet
+ * Returns: void
  * Example:
- * Explanation:
+ * Explanation: total packet size is ip header+udp header + dns header + dns query
  */
 void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize,
 		char *dnsIpAddress) {
@@ -332,11 +337,11 @@ void createIPPacket(struct ip_packet *packet, unsigned totalPacketSize,
 }
 
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: Create a UDP packet with length of a DNS packet
+ * Input: pointer to memory loacation where udp packet is placed
+ * Returns: void
  * Example:
- * Explanation:
+ * Explanation: udp packet with its length + DNS length is created.
  */
 void createUDPPacket(struct udp_packet *udpPacket, int hostnameLen) {
 
@@ -350,9 +355,9 @@ void createUDPPacket(struct udp_packet *udpPacket, int hostnameLen) {
 	udpPacket->checksum = htons(0);
 }
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: Make a valid DNS packet
+ * Input: pointer to the memory where DNS packet must be copied, hostname for which IP address is required
+ * Returns: void
  * Example:
  * Explanation:
  */
@@ -407,11 +412,11 @@ void createDNSPacket(void *dnsQueryPacket, char *hostName) {
 
 }
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: convert hostname to DNS format string.
+ * Input: host name which is pointer by names pointer
+ * Returns: pointer of type char containing the resultant string format used for DNS request
  * Example:
- * Explanation:
+ * Explanation: converting a string host name in DNS request form www.google.com to 3www6google3com0
  */
 char* convertToDNSFormat(char *names) {
 
@@ -540,11 +545,13 @@ void createTCPPacket(void *tcpPacketMem, int srcPortNum, int dstPortNum,
 
 }
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: Receive all packets and see if the Query has been responded by the mentioned DNS server
+ * Input: Identification number of the  DNS packet which has been sent in DNS request , Length of the DNS query, Host Address to
+ * 			store the response and dnsIpAddress to compare the address
+ * Returns: void
  * Example:
- * Explanation:
+ * Explanation: socket uses sock raw with eth p all mode to read all packets packets are received in a while loop to see if any
+ * 				packet is the respose we are waiting for.
  */
 void sendAndRecvDNSPackets(int identificationNum, int queryLen,
 		char *hostAddress,char *dnsIpAddress) {
@@ -617,9 +624,10 @@ void sendAndRecvDNSPackets(int identificationNum, int queryLen,
 
 }
 /**
- * Objective:
- * Input:
- * Returns:
+ * Objective: Parse UDP packet and check for the packet length to see if DNS packet is present
+ * Input: pointer to IP packet, total length of packet, identification num of the DNS packet, length of DNS query and pointer
+ * 			to DNS answer
+ * Returns: Void
  * Example:
  * Explanation:
  */
@@ -767,16 +775,21 @@ void convertIpDecimalToString(unsigned short *ipAddress,
 		 */
 		for (int k = 2; k >= 0; k--) {
 
+			//if(addressSingleDigit[k]!=0){
 			ipAddressString[ipIndex] = 48 + addressSingleDigit[k];
 			ipIndex++;
+			//}
 		}
 		/**
 		 * adding '.' after 3 digits.
 		 */
+		if(i<3)
+		{
 		ipAddressString[ipIndex] = '.';
 		ipIndex++;
+		}
 	}
-	ipAddressString[15] = '\0';
+	ipAddressString[ipIndex] = '\0';
 
 }
 /**
